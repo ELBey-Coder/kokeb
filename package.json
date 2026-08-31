@@ -1,0 +1,25 @@
+{
+  "name": "kokeb",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "16.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "lucide-react": "^1.37.0",
+    "@supabase/supabase-js": "^2.45.4",
+    "@supabase/ssr": "^0.5.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.13",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
+  }
+}
