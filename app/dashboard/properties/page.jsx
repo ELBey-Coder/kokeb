@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import SubmitForReviewButton from "./SubmitForReviewButton";
 import {
   Plus,
   Home as HomeIcon,
@@ -42,7 +43,8 @@ export default async function MyPropertiesPage() {
 
   const { data: listings, error } = await supabase
     .from("listings")
-    .select(`
+    .select(
+      `
       *,
       listing_photos (
         id,
@@ -50,7 +52,8 @@ export default async function MyPropertiesPage() {
         is_cover,
         sort_order
       )
-    `)
+    `,
+    )
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -61,13 +64,10 @@ export default async function MyPropertiesPage() {
   const listingsWithPhotos = await Promise.all(
     (listings || []).map(async (listing) => {
       const photos = [...(listing.listing_photos || [])].sort(
-        (a, b) => a.sort_order - b.sort_order
+        (a, b) => a.sort_order - b.sort_order,
       );
 
-      const cover =
-        photos.find((photo) => photo.is_cover) ||
-        photos[0] ||
-        null;
+      const cover = photos.find((photo) => photo.is_cover) || photos[0] || null;
 
       let coverUrl = null;
 
@@ -84,7 +84,7 @@ export default async function MyPropertiesPage() {
         coverUrl,
         photoCount: photos.length,
       };
-    })
+    }),
   );
 
   return (
@@ -116,9 +116,7 @@ export default async function MyPropertiesPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
             <HomeIcon className="w-10 h-10 text-slate-300 mx-auto mb-3" />
 
-            <h2 className="font-semibold mb-2">
-              No listings yet
-            </h2>
+            <h2 className="font-semibold mb-2">No listings yet</h2>
 
             <p className="text-sm text-slate-500 mb-5">
               Add your first Kokeb listing and upload your own property photos.
@@ -136,9 +134,7 @@ export default async function MyPropertiesPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {listingsWithPhotos.map((listing) => {
               const location =
-                [listing.city, listing.state]
-                  .filter(Boolean)
-                  .join(", ") ||
+                [listing.city, listing.state].filter(Boolean).join(", ") ||
                 listing.address ||
                 "Location not added";
 
@@ -148,8 +144,7 @@ export default async function MyPropertiesPage() {
                 "Listing";
 
               const priceUnit =
-                PRICE_LABELS[listing.pricing_unit] ||
-                listing.pricing_unit;
+                PRICE_LABELS[listing.pricing_unit] || listing.pricing_unit;
 
               return (
                 <article
@@ -166,9 +161,7 @@ export default async function MyPropertiesPage() {
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
                         <ImageIcon className="w-9 h-9 mb-2" />
-                        <span className="text-xs">
-                          No photos yet
-                        </span>
+                        <span className="text-xs">No photos yet</span>
                       </div>
                     )}
 
@@ -181,9 +174,7 @@ export default async function MyPropertiesPage() {
                     {listing.photoCount > 0 && (
                       <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2.5 py-1 rounded-full">
                         {listing.photoCount}{" "}
-                        {listing.photoCount === 1
-                          ? "photo"
-                          : "photos"}
+                        {listing.photoCount === 1 ? "photo" : "photos"}
                       </div>
                     )}
                   </div>
@@ -199,9 +190,7 @@ export default async function MyPropertiesPage() {
 
                     <div className="flex items-center gap-1.5 text-sm text-slate-500 mb-4">
                       <MapPin className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">
-                        {location}
-                      </span>
+                      <span className="truncate">{location}</span>
                     </div>
 
                     {(listing.category === "homes" ||
@@ -261,10 +250,13 @@ export default async function MyPropertiesPage() {
                         {listing.status === "draft"
                           ? "Draft listing"
                           : listing.status === "pending"
-                          ? "Under review"
-                          : "Live"}
+                            ? "Under review"
+                            : "Live"}
                       </span>
                     </div>
+                    {listing.status === "draft" && (
+                      <SubmitForReviewButton listingId={listing.id} />
+                    )}
                   </div>
                 </article>
               );
