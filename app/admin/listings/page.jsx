@@ -32,8 +32,7 @@ async function approveListing(formData) {
     .single();
 
   const isAdmin =
-    profile?.role === "platform_admin" ||
-    profile?.role === "admin_owner";
+    profile?.role === "platform_admin" || profile?.role === "admin_owner";
 
   if (!isAdmin) {
     throw new Error("You do not have permission to publish listings.");
@@ -53,6 +52,8 @@ async function approveListing(formData) {
 
   revalidatePath("/admin/listings");
   revalidatePath("/");
+
+  redirect("/admin/listings?published=1");
 }
 
 async function sendBackToDraft(formData) {
@@ -77,8 +78,7 @@ async function sendBackToDraft(formData) {
     .single();
 
   const isAdmin =
-    profile?.role === "platform_admin" ||
-    profile?.role === "admin_owner";
+    profile?.role === "platform_admin" || profile?.role === "admin_owner";
 
   if (!isAdmin) {
     throw new Error("You do not have permission to review listings.");
@@ -99,7 +99,10 @@ async function sendBackToDraft(formData) {
   revalidatePath("/admin/listings");
 }
 
-export default async function AdminListingsPage() {
+export default async function AdminListingsPage({ searchParams }) {
+  const params = await searchParams;
+  const listingPublished = params?.published === "1";
+
   const supabase = await createClient();
 
   const {
@@ -117,8 +120,7 @@ export default async function AdminListingsPage() {
     .single();
 
   const isAdmin =
-    profile?.role === "platform_admin" ||
-    profile?.role === "admin_owner";
+    profile?.role === "platform_admin" || profile?.role === "admin_owner";
 
   if (!isAdmin) {
     return (
@@ -145,7 +147,8 @@ export default async function AdminListingsPage() {
 
   const { data: listings, error } = await supabase
     .from("listings")
-    .select(`
+    .select(
+      `
       *,
       listing_photos (
         id,
@@ -153,7 +156,8 @@ export default async function AdminListingsPage() {
         is_cover,
         sort_order
       )
-    `)
+    `,
+    )
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
@@ -163,9 +167,7 @@ export default async function AdminListingsPage() {
 
   const ownerIds = [
     ...new Set(
-      (listings || [])
-        .map((listing) => listing.owner_id)
-        .filter(Boolean)
+      (listings || []).map((listing) => listing.owner_id).filter(Boolean),
     ),
   ];
 
@@ -178,33 +180,24 @@ export default async function AdminListingsPage() {
       .in("id", ownerIds);
 
     ownerMap = Object.fromEntries(
-      (owners || []).map((owner) => [
-        owner.id,
-        owner,
-      ])
+      (owners || []).map((owner) => [owner.id, owner]),
     );
   }
 
   const listingsWithPhotos = await Promise.all(
     (listings || []).map(async (listing) => {
       const photos = [...(listing.listing_photos || [])].sort(
-        (a, b) => a.sort_order - b.sort_order
+        (a, b) => a.sort_order - b.sort_order,
       );
 
-      const cover =
-        photos.find((photo) => photo.is_cover) ||
-        photos[0] ||
-        null;
+      const cover = photos.find((photo) => photo.is_cover) || photos[0] || null;
 
       let coverUrl = null;
 
       if (cover?.storage_path) {
         const { data } = await supabase.storage
           .from("listing-photos")
-          .createSignedUrl(
-            cover.storage_path,
-            60 * 60
-          );
+          .createSignedUrl(cover.storage_path, 60 * 60);
 
         coverUrl = data?.signedUrl || null;
       }
@@ -214,7 +207,7 @@ export default async function AdminListingsPage() {
         coverUrl,
         owner: ownerMap[listing.owner_id] || null,
       };
-    })
+    }),
   );
 
   return (
@@ -256,21 +249,18 @@ export default async function AdminListingsPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
             <Clock3 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
 
-            <h3 className="font-semibold mb-2">
-              Nothing waiting for review
-            </h3>
+            <h3 className="font-semibold mb-2">Nothing waiting for review</h3>
 
             <p className="text-sm text-slate-500">
-              Customer listings will appear here after they click Submit for Review.
+              Customer listings will appear here after they click Submit for
+              Review.
             </p>
           </div>
         ) : (
           <div className="space-y-6">
             {listingsWithPhotos.map((listing) => {
               const location =
-                [listing.city, listing.state]
-                  .filter(Boolean)
-                  .join(", ") ||
+                [listing.city, listing.state].filter(Boolean).join(", ") ||
                 listing.address ||
                 "Location not provided";
 
@@ -290,9 +280,7 @@ export default async function AdminListingsPage() {
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
                           <ImageIcon className="w-9 h-9 mb-2" />
-                          <span className="text-xs">
-                            No photo
-                          </span>
+                          <span className="text-xs">No photo</span>
                         </div>
                       )}
                     </div>
@@ -339,9 +327,7 @@ export default async function AdminListingsPage() {
 
                           <p className="font-semibold">
                             {listing.price != null
-                              ? `$${Number(
-                                  listing.price
-                                ).toLocaleString()}${
+                              ? `$${Number(listing.price).toLocaleString()}${
                                   listing.pricing_unit
                                     ? ` / ${listing.pricing_unit}`
                                     : ""

@@ -31,7 +31,7 @@ export default function SubmitForReviewButton({ listingId }) {
     }
 
     setStatus("done");
-    router.refresh();
+    router.push("/dashboard/properties?submitted=1");
   };
 
   return (
@@ -47,14 +47,12 @@ export default function SubmitForReviewButton({ listingId }) {
         {status === "saving"
           ? "Submitting..."
           : status === "done"
-          ? "Submitted"
-          : "Submit for Review"}
+            ? "Submitted"
+            : "Submit for Review"}
       </button>
 
       {status === "error" && (
-        <p className="text-xs text-rose-600 mt-2">
-          {errorMessage}
-        </p>
+        <p className="text-xs text-rose-600 mt-2">{errorMessage}</p>
       )}
     </div>
   );

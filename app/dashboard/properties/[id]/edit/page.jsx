@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -12,8 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import DashboardHeader from "../../DashboardHeader";
-
+import DashboardHeader from "../../../DashboardHeader";
 const CATEGORY_OPTIONS = [
   {
     value: "homes",
@@ -106,16 +105,104 @@ function Field({ label, hint, children }) {
   );
 }
 
-export default function AddPropertyPage() {
+export default function EditPropertyPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const params = useParams();
+  const supabase = useMemo(() => createClient(), []);
+
+  const listingId = params?.id;
 
   const [form, setForm] = useState(initialForm);
   const [amenities, setAmenities] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [status, setStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!listingId) return;
 
+    let cancelled = false;
+
+    async function loadListing() {
+      setLoading(true);
+      setErrorMessage("");
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/auth");
+        return;
+      }
+
+      const { data: listing, error } = await supabase
+        .from("listings")
+        .select("*")
+        .eq("id", listingId)
+        .eq("owner_id", user.id)
+        .eq("status", "draft")
+        .single();
+
+      if (error || !listing) {
+        if (!cancelled) {
+          setStatus("error");
+          setErrorMessage(
+            "This draft listing could not be found or cannot be edited.",
+          );
+          setLoading(false);
+        }
+
+        return;
+      }
+
+      const savedAmenities = Array.isArray(listing.amenities)
+        ? listing.amenities
+        : [];
+
+      const standardAmenities = savedAmenities.filter((item) =>
+        AMENITIES.includes(item),
+      );
+
+      const extraAmenities = savedAmenities.filter(
+        (item) => !AMENITIES.includes(item),
+      );
+
+      if (!cancelled) {
+        setForm({
+          title: listing.title || "",
+          address: listing.address || "",
+          city: listing.city || "",
+          state: listing.state || "",
+          zip: listing.zip || "",
+          category: listing.category || "homes",
+          property_type: listing.property_type || "",
+          bedrooms: listing.bedrooms != null ? String(listing.bedrooms) : "",
+          bathrooms: listing.bathrooms != null ? String(listing.bathrooms) : "",
+          price: listing.price != null ? String(listing.price) : "",
+          description: listing.description || "",
+          availability: listing.availability || "",
+          contact_phone: listing.contact_phone || "",
+          square_feet:
+            listing.square_feet != null ? String(listing.square_feet) : "",
+          commercial_use: listing.commercial_use || "",
+          lease_type: listing.lease_type || "",
+          pricing_unit: listing.pricing_unit || "night",
+          rules: Array.isArray(listing.rules) ? listing.rules.join(", ") : "",
+          other_amenities: extraAmenities.join(", "),
+        });
+
+        setAmenities(standardAmenities);
+        setLoading(false);
+      }
+    }
+
+    loadListing();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [listingId, router, supabase]);
   const selectedCategory = useMemo(
     () => CATEGORY_OPTIONS.find((x) => x.value === form.category),
     [form.category],
@@ -179,10 +266,9 @@ export default function AddPropertyPage() {
       .map((x) => x.trim())
       .filter(Boolean);
 
-    const { data: listing, error: listingError } = await supabase
+    const { error: listingError } = await supabase
       .from("listings")
-      .insert({
-        owner_id: user.id,
+      .update({
         title: form.title,
         address: form.address || null,
         city: form.city || null,
@@ -199,7 +285,6 @@ export default function AddPropertyPage() {
             : null,
 
         price: form.price ? Number(form.price) : null,
-
         description: form.description || null,
         amenities: allAmenities,
         availability: form.availability || null,
@@ -214,10 +299,10 @@ export default function AddPropertyPage() {
 
         pricing_unit: form.pricing_unit || null,
         rules,
-        status: "draft",
       })
-      .select("id")
-      .single();
+      .eq("id", listingId)
+      .eq("owner_id", user.id)
+      .eq("status", "draft");
 
     if (listingError) {
       setStatus("error");
@@ -236,7 +321,7 @@ export default function AddPropertyPage() {
           .replace(/[^a-z0-9._-]+/g, "-");
 
         const path =
-          `${user.id}/${listing.id}/` + `${Date.now()}-${i}-${cleanName}`;
+          `${user.id}/${listingid}/` + `${Date.now()}-${i}-${cleanName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("listing-photos")
@@ -253,7 +338,7 @@ export default function AddPropertyPage() {
         }
 
         photoRows.push({
-          listing_id: listing.id,
+          listing_id: listingId,
           owner_id: user.id,
           storage_path: path,
           alt_text: `${form.title} photo ${i + 1}`,
@@ -275,9 +360,22 @@ export default function AddPropertyPage() {
       }
     }
 
-    router.push("/dashboard/properties?saved=1");
+    router.push("/dashboard/properties");
+    router.refresh();
   };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F7F3EA] text-[#0B132B]">
+        <DashboardHeader />
 
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+            <p className="text-slate-500">Loading listing...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-[#F7F3EA] text-[#0B132B]">
       <DashboardHeader />
@@ -291,11 +389,9 @@ export default function AddPropertyPage() {
           Back to My Properties
         </Link>
 
-        <h1 className="font-serif text-3xl font-semibold mb-1">Add Listing</h1>
-
+        <h1 className="font-serif text-3xl font-semibold mb-1">Edit Listing</h1>
         <p className="text-sm text-slate-500 mb-8">
-          Choose a Kokeb category, add details and photos, then save it as a
-          private draft.
+          Update your draft listing details and save your changes.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -675,7 +771,7 @@ export default function AddPropertyPage() {
           >
             {status === "saving"
               ? "Saving listing and photos..."
-              : "Save Listing as Draft"}
+              : "Save Changes"}
           </button>
         </form>
       </main>

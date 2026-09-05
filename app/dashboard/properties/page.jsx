@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import SubmitForReviewButton from "./SubmitForReviewButton";
+import DeleteDraftButton from "./DeleteDraftButton";
 import {
   Plus,
   Home as HomeIcon,
@@ -9,6 +10,7 @@ import {
   MapPin,
   Building2,
   ImageIcon,
+  Pencil,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import DashboardHeader from "../DashboardHeader";
@@ -30,7 +32,11 @@ const PRICE_LABELS = {
   flat: "total",
 };
 
-export default async function MyPropertiesPage() {
+export default async function MyPropertiesPage({ searchParams }) {
+  const params = await searchParams;
+  const listingSaved = params?.saved === "1";
+  const listingSubmitted = params?.submitted === "1";
+
   const supabase = await createClient();
 
   const {
@@ -92,6 +98,16 @@ export default async function MyPropertiesPage() {
       <DashboardHeader />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {listingSaved && (
+          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            Listing saved successfully.
+          </div>
+        )}
+        {listingSubmitted && (
+          <div className="mb-6 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+            Listing submitted for review successfully.
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="font-serif text-3xl font-semibold mb-1">
@@ -255,7 +271,18 @@ export default async function MyPropertiesPage() {
                       </span>
                     </div>
                     {listing.status === "draft" && (
-                      <SubmitForReviewButton listingId={listing.id} />
+                      <div className="mt-4 space-y-2">
+                        <Link
+                          href={`/dashboard/properties/${listing.id}/edit`}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-[#0B132B] px-4 py-2.5 text-sm font-semibold hover:bg-slate-50"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          Edit Listing
+                        </Link>
+
+                        <SubmitForReviewButton listingId={listing.id} />
+                        <DeleteDraftButton listingId={listing.id} />
+                      </div>
                     )}
                   </div>
                 </article>
